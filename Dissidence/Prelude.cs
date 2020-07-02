@@ -5,13 +5,14 @@ using Metatron.Dissidence.Node;
 
 namespace Metatron.Dissidence {
     public static class Prelude {
-        // static void Initialize(Engine engine) {
-        //     Engine.AddFunction("Meta.AST", "Replace Node", ReplaceNode);
-        //     Engine.AddFunction("Meta.AST", "Remove Statement", RemoveStatement);
-        //     Engine.AddFunction("Meta.AST", "Add Statement", AddStatement);
-        // }
-        // TODO: docs, ToString and shit
-        // TODO: builtin methods
+        public static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
+
+        public static List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> FunctionInfos = new List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> {
+            ("Meta.AST", "Replace Node", (Object) (Func<AST, Node.Node, Node.Node, AST>) ReplaceNode, new[] { "AST", "Target", "Replacement" }, "Replace node {2} with {3} in {1}"),
+            ("Meta.AST", "Remove Statement", (Object) (Func<AST, Node.Node, AST>) RemoveStatement, new[] { "AST", "Target" }, "Remove statement{2} from {1}"),
+            ("Meta.AST", "Add Statement", (Object) (Func<AST, Node.Node, AST>) AddStatement, new[] { "AST", "Target" }, "Add empty statement after statement {2} in {1}"),
+        };
+        // TODO: builtin methods (like string shit)
 
         // TODO: maybe make this an extension method
         // which would signify the AST is pulled in from locals if possible

@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 
 namespace Metatron.Dissidence {
+    [Serializable]
     public class Scope : IDictionary<String, Object> {
         public Scope? Parent;
         private Dictionary<String, Object> lookup = new Dictionary<String, Object>();
@@ -58,7 +59,7 @@ namespace Metatron.Dissidence {
                 value = Parent[name];
                 return true;
             } else {
-                value = null;
+                value = default;
                 return false;
             }
         }

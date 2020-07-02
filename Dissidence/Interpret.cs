@@ -1,10 +1,13 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using Metatron.Dissidence.Node;
 
 namespace Metatron.Dissidence {
     public static class Interpret {
-        public static object Evaluate(AST ast) {
+        private static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
+
+        public static Object Evaluate(AST ast) {
             if (ast.HoleCount > 0) {
                 throw new ArgumentException("AST has holes; cannot interpret");
             }
@@ -13,28 +16,31 @@ namespace Metatron.Dissidence {
             return Evaluate(ast.Root, new Scope());
         }
 
-        public static object Evaluate(Node.Node target, Scope scope) {
+        public static Object Evaluate(Node.Node target, Scope scope) {
             return target switch {
                     Literal node => node.Value,
                     Variable node => scope[node.Name],
                     // TODO: make sure that body returns unit when typechecking
                     If node => ((bool) Evaluate(node.Condition, scope)) ? Evaluate(node.Body, scope) : new Prelude.Unit(),
-                    Call node => ((Func<object>) (() => {
+                    Call node => ((Func<Object>) (() => {
                         var function = Evaluate(node.Function, scope);
-                        if (!(function is Delegate)) {
+                        var arguments = node.Arguments.Select(argument => Evaluate(argument, scope)).ToArray();
+                        if (function is Function) {
+                            return ((Function) function).Call(arguments);
+                        } else if (!(function is Delegate)) {
                             throw new ArgumentException("Not a function; cannot be called");
                         }
-                        return ((Delegate) function).DynamicInvoke(node.Arguments.Select(argument => Evaluate(argument, scope)).ToArray());
+                        return ((Delegate) function).DynamicInvoke(arguments);
                     }))(),
-                    While node => ((Func<object>) (() => {
+                    While node => ((Func<Object>) (() => {
                         // TODO: this is inconsistent (cannot be typechecked) if body may run 0 times.
-                        var result = (object) new Prelude.Unit();
+                        var result = (Object) new Prelude.Unit();
                         while ((bool) Evaluate(node.Condition, scope)) {
                             result = Evaluate(node.Body, scope);
                         }
                         return result;
                     }))(),
-                    Match node => ((Func<object>) (() => {
+                    Match node => ((Func<Object>) (() => {
                         var target2 = Evaluate(node.Value, scope);
                         foreach (var arm in node.Arms) {
                             if (!(arm is Mapping)) {
@@ -47,8 +53,8 @@ namespace Metatron.Dissidence {
                         throw new ArgumentException("This match is not exhaustive");
                     }))(),
                     Mapping node => throw new ArgumentException("Mapping node cannot be used outside of match arm"),
-                    Block node => ((Func<object>) (() => {
-                        var result = (object) new Prelude.Unit();
+                    Block node => ((Func<Object>) (() => {
+                        var result = (Object) new Prelude.Unit();
                         var scope2 = new Scope(scope);
                         foreach (var statement in node.Statements) {
                             result = Evaluate(statement, scope2);
