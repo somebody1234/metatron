@@ -11,6 +11,9 @@ namespace Metatron.Dissidence {
             ("Meta.AST", "Replace Node", (Object) (Func<AST, Node.Node, Node.Node, AST>) ReplaceNode, new[] { "AST", "Target", "Replacement" }, "Replace node {2} with {3} in {1}"),
             ("Meta.AST", "Remove Statement", (Object) (Func<AST, Node.Node, AST>) RemoveStatement, new[] { "AST", "Target" }, "Remove statement{2} from {1}"),
             ("Meta.AST", "Add Statement", (Object) (Func<AST, Node.Node, AST>) AddStatement, new[] { "AST", "Target" }, "Add empty statement after statement {2} in {1}"),
+            // ("Core.Session", "Create User Session", (Object) (Func<>) CreateUserSession),
+            // ("Core.Session", "Create Channel Session"),
+            // ("Core.Session", "Create Guild Session"),
         };
         // TODO: builtin methods (like string shit)
 
