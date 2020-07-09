@@ -59,6 +59,7 @@ namespace Metatron.Dissidence {
                 value = Parent[name];
                 return true;
             } else {
+                // TODO: turns out this is null so the warning is still there.
                 value = default;
                 return false;
             }

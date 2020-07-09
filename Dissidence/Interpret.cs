@@ -30,6 +30,7 @@ namespace Metatron.Dissidence {
                         } else if (!(function is Delegate)) {
                             throw new ArgumentException("Not a function; cannot be called");
                         }
+                        // TODO: null warning here. not sure how to solve this.
                         return ((Delegate) function).DynamicInvoke(arguments);
                     }))(),
                     While node => ((Func<Object>) (() => {
