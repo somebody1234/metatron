@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="discord.net" Version="2.2.0" />
+    <PackageReference Include="idgen" Version="3.0.0" />
     <PackageReference Include="Microsoft.Net.Compilers.Toolset" Version="3.8.0-1.20325.3">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>

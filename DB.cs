@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
+using Metatron.Dissidence;
 
 namespace Metatron.DB {
     public class Context : DbContext {
@@ -22,4 +23,5 @@ namespace Metatron.DB {
     public record UserSession : Session { public UInt64[] UserIds; public UInt64[] RoleIds; }
     public record ChannelSession : Session { public UInt64[] ChannelIds; public UInt64[] CategoryIds; }
     public record GuildSession : Session {}
+    public record Permissions { public Prelude.Permissions Value; }
 }

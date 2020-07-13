@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text;
+using IdGen;
 using Metatron.Dissidence.Node;
 
 namespace Metatron.Dissidence {
@@ -16,11 +17,24 @@ namespace Metatron.Dissidence {
             ("Core.Session", "Create User Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, UserSession>) CreateUserSession, new[] { "Guild", "Users", "Roles" }, "Create session associated with {0} which includes {1} and {2}"),
             ("Core.Session", "Create Channel Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, ChannelSession>) CreateChannelSession, new[] { "Guild", "Channels", "Categories" }, "Create session associated with {0} which includes {1} and {2}"),
             ("Core.Session", "Create Guild Session", (Object) (Func<UInt64, GuildSession>) CreateGuildSession, new[] { "Guild" }, "Create session associated with {0}"),
+            ("something.Snowflake", "Create Snowflake Generator", (Object) (Func<IdGenerator>) CreateSnowflakeGenerator, new String[] {}, "Create snowflake generator"),
+            ("something.Snowflake", "Create Snowflake", (Object) (Func<IdGenerator, UInt64>) CreateSnowflake, new[] { "Generator" }, "Create snowflake using {0}"),
         };
         // TODO: builtin methods (like string shit)
 
 #region Miscellaneous
         public record Unit {};
+
+        public static IdGenerator CreateSnowflakeGenerator() {
+            return new IdGenerator(0, new IdGeneratorOptions(sequenceOverflowStrategy: SequenceOverflowStrategy.SpinWait));
+        }
+
+        public static UInt64 CreateSnowflake(IdGenerator generator) {
+            return ~(UInt64)~ generator.CreateId();
+        }
+
+        // TODO: idk what im doing. this is for function and module i guess
+        public record HasMetadata { public String Name; public String Description; }
 
         private static String NaturalFormatPlural(String name) {
             return name + "s"; // TODO
@@ -158,6 +172,15 @@ namespace Metatron.Dissidence {
         public static GuildSession CreateGuildSession(UInt64 guild) {
             return new GuildSession { GuildId = guild, Data = new SessionData {} };
         }
+#endregion
+
+#region Core.Permissions
+        public record PermissionMetadata : HasMetadata { public UInt64 Id; }
+        public record PermissionsMetadata : HasMetadata { public List<PermissionMetadata> Value; }
+
+        // NOTE: these do not need a name as they are attached to the declaring module (and only one per module)
+        public record Permission { public UInt64 Id; }
+        public record Permissions { public HashSet<Permission> Value; }
 #endregion
     }
 }
