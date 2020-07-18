@@ -4,15 +4,21 @@ using System.Collections.Generic;
 using System.Text;
 using IdGen;
 using Metatron.Dissidence.Node;
+using UInt8 = System.Byte;
 
 namespace Metatron.Dissidence {
     public static class Prelude {
         public static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
 
         public static List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> FunctionInfos = new List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> {
-            ("Meta.AST", "Replace Node", (Object) (Func<AST, Node.Node, Node.Node, AST>) ReplaceNode, new[] { "AST", "Target", "Replacement" }, "Replace {2} with {3} in {1}"),
+            ("Meta.AST", "Replace Expression", (Object) (Func<AST, Node.Node, Node.Node, AST>) ReplaceNode, new[] { "AST", "Target", "Replacement" }, "Replace {2} with {3} in {1}"),
             ("Meta.AST", "Remove Statement", (Object) (Func<AST, Node.Node, AST>) RemoveStatement, new[] { "AST", "Target" }, "Remove {2} from {1}"),
             ("Meta.AST", "Add Statement", (Object) (Func<AST, Node.Node, AST>) AddStatement, new[] { "AST", "Target" }, "Add empty statement after {2} in {1}"),
+            // TODO: not sure if this works ._. am i really going to need generics this soon
+            ("Meta.Function", "Change Name", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeName, new[] { "Object", "Name" }, "Change name of {1} to {2}"),
+            ("Meta.Function", "Change Description", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeDescription, new[] { "Object", "Description" }, "Change description of {1} to {2}"),
+            ("Meta.Function", "Remove Input", (Object) (Func<Function, UInt8, Function>) RemoveArgument, new[] { "Function", "Position" }, "Remove argument at position {2} from {1}"),
+            ("Meta.Function", "Add Input", (Object) (Func<Function, UInt8, (String, Type), Function>) AddArgument, new[] { "Function", "Position", "Name", "Type" }, "Insert argument into {1} at position {2}"),
             // TODO: take ienumerables rather than lists?
             ("Core.Session", "Create User Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, UserSession>) CreateUserSession, new[] { "Guild", "Users", "Roles" }, "Create session associated with {0} which includes {1} and {2}"),
             ("Core.Session", "Create Channel Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, ChannelSession>) CreateChannelSession, new[] { "Guild", "Channels", "Categories" }, "Create session associated with {0} which includes {1} and {2}"),
@@ -81,6 +87,28 @@ namespace Metatron.Dissidence {
                     }
                     return result.ToString();
             }
+        }
+#endregion
+
+#region Meta.Function
+        public static HasMetadata ChangeName(HasMetadata metadata, String name) {
+            return metadata with { Name = name };
+        }
+
+        public static HasMetadata ChangeDescription(HasMetadata metadata, String description) {
+            return metadata with { Description = description };
+        }
+
+        public static Function RemoveArgument(Function function, UInt8 index) {
+            var arguments = function.Arguments;
+            arguments.RemoveAt(index);
+            return function with { Arguments = arguments };
+        }
+
+        public static Function AddArgument(Function function, UInt8 index, (String Name, Type Type) argument) {
+            var arguments = function.Arguments;
+            arguments.Insert(index, argument);
+            return function with { Arguments = arguments };
         }
 #endregion
 
