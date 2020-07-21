@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using IdGen;
 using Metatron.Dissidence.Node;
+using Metatron.Dissidence.Attributes;
 using UInt8 = System.Byte;
 
 namespace Metatron.Dissidence {
@@ -11,9 +12,9 @@ namespace Metatron.Dissidence {
         public static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
 
         public static List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> FunctionInfos = new List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> {
-            ("Meta.AST", "Replace Expression", (Object) (Func<AST, Node.Node, Node.Node, AST>) ReplaceNode, new[] { "AST", "Target", "Replacement" }, "Replace {2} with {3} in {1}"),
-            ("Meta.AST", "Remove Statement", (Object) (Func<AST, Node.Node, AST>) RemoveStatement, new[] { "AST", "Target" }, "Remove {2} from {1}"),
-            ("Meta.AST", "Add Statement", (Object) (Func<AST, Node.Node, AST>) AddStatement, new[] { "AST", "Target" }, "Add empty statement after {2} in {1}"),
+            ("Meta.Node.Node", "Replace Expression", (Object) (Func<Node.Node, Node.Node, Node.Node, Node.Node>) ReplaceNode, new[] { "Node.Node", "Target", "Replacement" }, "Replace {2} with {3} in {1}"),
+            ("Meta.Node.Node", "Remove Statement", (Object) (Func<Node.Node, Node.Node, Node.Node>) RemoveStatement, new[] { "Node.Node", "Target" }, "Remove {2} from {1}"),
+            ("Meta.Node.Node", "Add Statement", (Object) (Func<Node.Node, Node.Node, Node.Node>) AddStatement, new[] { "Node.Node", "Target" }, "Add empty statement after {2} in {1}"),
             // TODO: not sure if this works ._. am i really going to need generics this soon
             ("Meta.Function", "Change Name", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeName, new[] { "Object", "Name" }, "Change name of {1} to {2}"),
             ("Meta.Function", "Change Description", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeDescription, new[] { "Object", "Description" }, "Change description of {1} to {2}"),
@@ -112,10 +113,10 @@ namespace Metatron.Dissidence {
         }
 #endregion
 
-#region Meta.AST
+#region Meta.Node.Node
         // TODO: maybe make this an extension method
-        // which would signify the AST is pulled in from locals if possible
-        public static AST ReplaceNode(AST ast, Node.Node target, Node.Node replacement) {
+        // which would signify the Node.Node is pulled in from locals if possible
+        public static Node.Node ReplaceNode(Node.Node ast, Node.Node target, Node.Node replacement) {
             while (target.Parent != null) {
                 replacement = target.Parent switch {
                     // NOTE: literals, variables and holes don't contain node children.
@@ -126,11 +127,11 @@ namespace Metatron.Dissidence {
                     Mapping node => replacement == node.Value ? node with { Value = replacement } : node with { Body = replacement },
                     Block node => node with { Statements = node.Statements.Select(item => item == target ? replacement : item).ToList() },
                     // TODO: silently do nothing i guess...
-                    _ => throw new ArgumentException("Unknown node type found when editing AST"),
+                    _ => throw new ArgumentException("Unknown node type found when editing Node.Node"),
                 };
                 target = target.Parent;
             }
-            return ast with { Root = replacement };
+            return replacement;
         }
 
         private static List<T> Removed<T>(this List<T> list, T item) {
@@ -143,7 +144,7 @@ namespace Metatron.Dissidence {
             return list;
         }
 
-        public static AST RemoveStatement(AST ast, Node.Node target) {
+        public static Node.Node RemoveStatement(Node.Node ast, Node.Node target) {
             return target.Parent switch {
                 Match node => target == node.Value ? throw new ArgumentException("Not a statement; cannot remove statement") : ReplaceNode(ast, node, node with { Arms = node.Arms.Removed(target) }),
                 Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Removed(target) }),
@@ -151,7 +152,7 @@ namespace Metatron.Dissidence {
             };
         }
 
-        public static AST AddStatement(AST ast, Node.Node target) {
+        public static Node.Node AddStatement(Node.Node ast, Node.Node target) {
             return target.Parent switch {
                 Match node => target == node.Value ? throw new ArgumentException("Cannot add statement here") : ReplaceNode(ast, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf(target), new Mapping { Value = new Hole {}, Body = new Hole {} }) }),
                 Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(target), new Hole {}) }),
@@ -164,28 +165,28 @@ namespace Metatron.Dissidence {
         // TODO
         public record SessionData {}
         public record Session {
-            [DissidenceMemberInfo(Name="guild ID", Description="ID of the guild this session is active in")]
+            [MemberInfo(Name="guild ID", Description="ID of the guild this session is active in")]
             public UInt64 GuildId;
-            [DissidenceMemberInfo(Description="ID of the module this session is associated with")]
+            [MemberInfo(Description="ID of the module this session is associated with")]
             public UInt64 Module;
-            [DissidenceMemberInfo(Description="Data of the session that is persisted across function invocations")]
+            [MemberInfo(Description="Data of the session that is persisted across function invocations")]
             public SessionData Data;
         }
-        [DissidenceRecordInfo(Description="Session that includes certain users and roles in a guild")]
+        [RecordInfo(Description="Session that includes certain users and roles in a guild")]
         public record UserSession : Session {
-            [DissidenceMemberInfo(Description="List of users included in this session")]
+            [MemberInfo(Description="List of users included in this session")]
             public UInt64[] UserIds;
-            [DissidenceMemberInfo(Description="List of roles included in this session")]
+            [MemberInfo(Description="List of roles included in this session")]
             public UInt64[] RoleIds;
         }
-        [DissidenceRecordInfo(Description="Session that includes certain channels and categories in a guild")]
+        [RecordInfo(Description="Session that includes certain channels and categories in a guild")]
         public record ChannelSession : Session {
-            [DissidenceMemberInfo(Description="List of channels included in this session")]
+            [MemberInfo(Description="List of channels included in this session")]
             public UInt64[] ChannelIds;
-            [DissidenceMemberInfo(Description="List of categories included in this session")]
+            [MemberInfo(Description="List of categories included in this session")]
             public UInt64[] CategoryIds;
         }
-        [DissidenceRecordInfo(Description="Session that includes an entire guild")]
+        [RecordInfo(Description="Session that includes an entire guild")]
         public record GuildSession : Session {}
 
 

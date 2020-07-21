@@ -7,13 +7,10 @@ namespace Metatron.Dissidence {
     public static class Interpret {
         private static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
 
-        public static Object Evaluate(AST ast) {
-            if (ast.HoleCount > 0) {
-                throw new ArgumentException("AST has holes; cannot interpret");
-            }
+        public static Object Evaluate(Node.Node node) {
             // TODO: surely scope should have *something*? message at least
-            // not that message can't be passed in; dissidence shouldn't know about discrod functions
-            return Evaluate(ast.Root, new Scope());
+            // not that message can't be passed in; dissidence shouldn't know about discord functions
+            return Evaluate(node, new Scope());
         }
 
         public static Object Evaluate(Node.Node target, Scope scope) {

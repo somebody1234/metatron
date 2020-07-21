@@ -36,7 +36,6 @@ namespace Metatron {
                         Arguments = function.Arguments,
                         NaturalFormat = function.NaturalFormat,
                         IsNative = true,
-                        Body = new Byte[] {},
                     });
                 }
             }
