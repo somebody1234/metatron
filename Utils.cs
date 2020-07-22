@@ -5,7 +5,9 @@ namespace Metatron {
     public static class Utils {
         public static void Setup() {
             // TODO: create tables and shit
+            // TODO: reflection to list builtins
             
+            /*
             var modules = new Dictionary<String, (UInt64 Id, Dictionary<String, UInt64> Functions)>();
             foreach (var function in Dissidence.Prelude.FunctionInfos) {
                 var moduleId = (UInt64) 0;
@@ -34,11 +36,11 @@ namespace Metatron {
                         ModuleId = 0x1fffff00000000ul | (moduleId << 16),
                         Name = function.FunctionName,
                         Arguments = function.Arguments,
-                        NaturalFormat = function.NaturalFormat,
                         IsNative = true,
                     });
                 }
             }
+            */
         }
     }
 }

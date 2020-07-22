@@ -1,121 +1,58 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Text;
-using IdGen;
 using Metatron.Dissidence.Node;
 using Metatron.Dissidence.Attributes;
+using static Metatron.Dissidence.Formats.Natural;
 using UInt8 = System.Byte;
 
 namespace Metatron.Dissidence {
     public static class Prelude {
-        public static Dictionary<UInt64, Object> Functions = new Dictionary<UInt64, Object>();
-
-        public static List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> FunctionInfos = new List<(String ModuleName, String FunctionName, Object Function, String[] Arguments, String NaturalFormat)> {
-            ("Meta.Node.Node", "Replace Expression", (Object) (Func<Node.Node, Node.Node, Node.Node, Node.Node>) ReplaceNode, new[] { "Node.Node", "Target", "Replacement" }, "Replace {2} with {3} in {1}"),
-            ("Meta.Node.Node", "Remove Statement", (Object) (Func<Node.Node, Node.Node, Node.Node>) RemoveStatement, new[] { "Node.Node", "Target" }, "Remove {2} from {1}"),
-            ("Meta.Node.Node", "Add Statement", (Object) (Func<Node.Node, Node.Node, Node.Node>) AddStatement, new[] { "Node.Node", "Target" }, "Add empty statement after {2} in {1}"),
-            // TODO: not sure if this works ._. am i really going to need generics this soon
-            ("Meta.Function", "Change Name", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeName, new[] { "Object", "Name" }, "Change name of {1} to {2}"),
-            ("Meta.Function", "Change Description", (Object) (Func<HasMetadata, String, HasMetadata>) ChangeDescription, new[] { "Object", "Description" }, "Change description of {1} to {2}"),
-            ("Meta.Function", "Remove Input", (Object) (Func<Function, UInt8, Function>) RemoveArgument, new[] { "Function", "Position" }, "Remove argument at position {2} from {1}"),
-            ("Meta.Function", "Add Input", (Object) (Func<Function, UInt8, (String, Type), Function>) AddArgument, new[] { "Function", "Position", "Name", "Type" }, "Insert argument into {1} at position {2}"),
-            // TODO: take ienumerables rather than lists?
-            ("Core.Session", "Create User Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, UserSession>) CreateUserSession, new[] { "Guild", "Users", "Roles" }, "Create session associated with {0} which includes {1} and {2}"),
-            ("Core.Session", "Create Channel Session", (Object) (Func<UInt64, List<UInt64>, List<UInt64>, ChannelSession>) CreateChannelSession, new[] { "Guild", "Channels", "Categories" }, "Create session associated with {0} which includes {1} and {2}"),
-            ("Core.Session", "Create Guild Session", (Object) (Func<UInt64, GuildSession>) CreateGuildSession, new[] { "Guild" }, "Create session associated with {0}"),
-            ("something.Snowflake", "Create Snowflake Generator", (Object) (Func<IdGenerator>) CreateSnowflakeGenerator, new String[] {}, "Create snowflake generator"),
-            ("something.Snowflake", "Create Snowflake", (Object) (Func<IdGenerator, UInt64>) CreateSnowflake, new[] { "Generator" }, "Create snowflake using {0}"),
-        };
         // TODO: builtin methods (like string shit)
 
 #region Miscellaneous
         public record Unit {};
 
-        public static IdGenerator CreateSnowflakeGenerator() {
-            return new IdGenerator(0, new IdGeneratorOptions(sequenceOverflowStrategy: SequenceOverflowStrategy.SpinWait));
-        }
-
-        public static UInt64 CreateSnowflake(IdGenerator generator) {
-            return ~(UInt64)~ generator.CreateId();
-        }
-
         // TODO: idk what im doing. this is for function and module i guess
         public record HasMetadata { public String Name; public String Description; }
-
-        private static String NaturalFormatPlural(String name) {
-            return name + "s"; // TODO
-        }
-
-        private static System.Text.RegularExpressions.Regex rNewWord = new System.Text.RegularExpressions.Regex(@"(?=[A-Z])", System.Text.RegularExpressions.RegexOptions.Compiled);
-        private static String NaturalFormatTypeName<T>() {
-            // TODO: if type has DissidenceRecordInfo attribute use name from that
-            return string.Join(" ", rNewWord.Split(typeof(T).Name).Select(word => word.ToLower()));
-        }
-
-        public interface INaturalFormat {
-            public String NaturalFormat();
-        }
-
-        public static String NaturalFormat<T>(T item) {
-            if (item is INaturalFormat) {
-                return ((INaturalFormat) item).NaturalFormat();
-            } else {
-                return $"{NaturalFormatTypeName<T>()}";
-            }
-        }
-
-        public static String NaturalFormat<T>(IEnumerable<T> items) {
-            var count = items.Count();
-            switch (count) {
-                case 0:
-                    return $"no {NaturalFormatPlural(NaturalFormatTypeName<T>())}";
-                case 1:
-                    foreach (var item in items) {
-                        return NaturalFormat(item);
-                    }
-                    return ""; // NOTE: should never happen
-                default:
-                    var result = new StringBuilder();
-                    foreach (var item in items) {
-                        if (count-- == 0) {
-                            // TODO: i18n
-                            result.Append(" and ");
-                        } else {
-                            result.Append(", ");
-                        }
-                        result.Append(NaturalFormat(item));
-                    }
-                    return result.ToString();
-            }
-        }
 #endregion
 
 #region Meta.Function
-        public static HasMetadata ChangeName(HasMetadata metadata, String name) {
-            return metadata with { Name = name };
+        // TODO: not sure if this works ._. am i really going to need generics this soon
+        [FunctionInfo(Module="Meta.Function", Name="Change Name", Description="Change name")]
+        [NaturalFormat("Change name of {1} to {2}")]
+        public static HasMetadata ChangeName(HasMetadata Object, String Name) {
+            return Object with { Name = Name };
         }
 
-        public static HasMetadata ChangeDescription(HasMetadata metadata, String description) {
-            return metadata with { Description = description };
+        [FunctionInfo(Module="Meta.Function", Name="Change Description", Description="Change description")]
+        [NaturalFormat("Change description of {1} to {2}")]
+        public static HasMetadata ChangeDescription(HasMetadata Object, String Description) {
+            return Object with { Description = Description };
         }
 
-        public static Function RemoveArgument(Function function, UInt8 index) {
-            var arguments = function.Arguments;
-            arguments.RemoveAt(index);
-            return function with { Arguments = arguments };
+        [FunctionInfo(Module="Meta.Function", Name="Remove Input", Description="Remove input at specified position")]
+        [NaturalFormat("Remove argument at position {2} from {1}")]
+        public static Function RemoveArgument(Function Function, UInt8 Position) {
+            var arguments = Function.Arguments;
+            arguments.RemoveAt(Position);
+            return Function with { Arguments = arguments };
         }
 
-        public static Function AddArgument(Function function, UInt8 index, (String Name, Type Type) argument) {
-            var arguments = function.Arguments;
-            arguments.Insert(index, argument);
-            return function with { Arguments = arguments };
+        [FunctionInfo(Module="Meta.Function", Name="Add Input", Description="Add input to specified position")]
+        [NaturalFormat("Insert argument into {1} at position {2}")]
+        public static Function AddArgument(Function Function, UInt8 Position, (String Name, Type Type) Argument) {
+            var arguments = Function.Arguments;
+            arguments.Insert(Position, Argument);
+            return Function with { Arguments = arguments };
         }
 #endregion
 
-#region Meta.Node.Node
+#region Meta.AST
         // TODO: maybe make this an extension method
         // which would signify the Node.Node is pulled in from locals if possible
+        [FunctionInfo(Module="Meta.AST", Name="Replace Expression", Description="Replace selected expression with another expression")]
+        [NaturalFormat("Replace {2} with {3} in {1}")]
         public static Node.Node ReplaceNode(Node.Node ast, Node.Node target, Node.Node replacement) {
             while (target.Parent != null) {
                 replacement = target.Parent switch {
@@ -144,6 +81,8 @@ namespace Metatron.Dissidence {
             return list;
         }
 
+        [FunctionInfo(Module="Meta.AST", Name="Remove Statement", Description="Remove selected statement")]
+        [NaturalFormat("Remove {2} from {1}")]
         public static Node.Node RemoveStatement(Node.Node ast, Node.Node target) {
             return target.Parent switch {
                 Match node => target == node.Value ? throw new ArgumentException("Not a statement; cannot remove statement") : ReplaceNode(ast, node, node with { Arms = node.Arms.Removed(target) }),
@@ -152,10 +91,23 @@ namespace Metatron.Dissidence {
             };
         }
 
-        public static Node.Node AddStatement(Node.Node ast, Node.Node target) {
+        [FunctionInfo(Module="Meta.AST", Name="Add Statement Before", Description="Add empty statement before selected statement")]
+        [NaturalFormat("Add empty statement before {2} in {1}")]
+        public static Node.Node AddStatementBefore(Node.Node ast, Node.Node target) {
             return target.Parent switch {
                 Match node => target == node.Value ? throw new ArgumentException("Cannot add statement here") : ReplaceNode(ast, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf(target), new Mapping { Value = new Hole {}, Body = new Hole {} }) }),
                 Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(target), new Hole {}) }),
+                _ => throw new ArgumentException("Cannot add statement here"),
+            };
+        }
+
+        // TODO: DRY
+        [FunctionInfo(Module="Meta.AST", Name="Add Statement After", Description="Add empty statement after selected statement")]
+        [NaturalFormat("Add empty statement after {2} in {1}")]
+        public static Node.Node AddStatementAfter(Node.Node ast, Node.Node target) {
+            return target.Parent switch {
+                Match node => target == node.Value ? throw new ArgumentException("Cannot add statement here") : ReplaceNode(ast, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf(target), new Mapping { Value = new Hole {}, Body = new Hole {} }) }),
+                Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(target) + 1, new Hole {}) }),
                 _ => throw new ArgumentException("Cannot add statement here"),
             };
         }
@@ -189,27 +141,23 @@ namespace Metatron.Dissidence {
         [RecordInfo(Description="Session that includes an entire guild")]
         public record GuildSession : Session {}
 
-
+        [FunctionInfo(Module="Core.Session", Name="Create User Session", Description="Create session that includes certain users and roles in a guild")]
+        [NaturalFormat("Create session associated with {0} which includes {1} and {2}")]
         public static UserSession CreateUserSession(UInt64 guild, List<UInt64> users, List<UInt64> roles) {
             return new UserSession { GuildId = guild, UserIds = users.ToArray(), RoleIds = roles.ToArray(), Data = new SessionData {} };
         }
 
+        [FunctionInfo(Module="Core.Session", Name="Create Channel Session", Description="Create session that includes certain channels and categories in a guild")]
+        [NaturalFormat("Create session associated with {0} which includes {1} and {2}")]
         public static ChannelSession CreateChannelSession(UInt64 guild, List<UInt64> channels, List<UInt64> categories) {
             return new ChannelSession { GuildId = guild, ChannelIds = channels.ToArray(), CategoryIds = categories.ToArray(), Data = new SessionData {} };
         }
 
+        [FunctionInfo(Module="Core.Session", Name="Create Guild Session", Description="Create session that includes entire guild")]
+        [NaturalFormat("Create session associated with {0}")]
         public static GuildSession CreateGuildSession(UInt64 guild) {
             return new GuildSession { GuildId = guild, Data = new SessionData {} };
         }
-#endregion
-
-#region Core.Permissions
-        public record PermissionMetadata : HasMetadata { public UInt64 Id; }
-        public record PermissionsMetadata : HasMetadata { public List<PermissionMetadata> Value; }
-
-        // NOTE: these do not need a name as they are attached to the declaring module (and only one per module)
-        public record Permission { public UInt64 Id; }
-        public record Permissions { public HashSet<Permission> Value; }
 #endregion
     }
 }

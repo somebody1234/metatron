@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Metatron.Dissidence;
 using Metatron.Dissidence.Attributes;
-using static Metatron.Dissidence.Prelude;
 
 namespace Metatron.DissidenceDiscord {
     namespace DiscordPermissions {
