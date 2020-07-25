@@ -128,7 +128,7 @@ namespace Metatron.Dissidence {
                     // TODO: figure out how to represent _.
                     // TODO: the Mapping and Handler reprs are a stopgap measure. normally they should be Hole but obviously that can't be used in all places
                     ReplaceNode(Context, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf((Mapping) Statement), new Mapping {
-                        Value = new Literal { Value = (Object) null },
+                        Value = new Literal { Value = (Object) new Prelude.Unit() },
                         Body = new Block { Statements = new List<Node.Node>() }
                     }) }),
                 Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
@@ -149,7 +149,7 @@ namespace Metatron.Dissidence {
             return Statement.Parent switch {
                 Match node => Statement == node.Value ? throw new ArgumentException("Cannot add statement here") :
                     ReplaceNode(Context, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf((Mapping) Statement), new Mapping {
-                        Value = new Literal { Value = (Object) null },
+                        Value = new Literal { Value = (Object) new Prelude.Unit() },
                         Body = new Block { Statements = new List<Node.Node>() }
                     }) }),
                 Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
