@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Metatron.Dissidence.Node;
 using Metatron.Dissidence.Attributes;
 using static Metatron.Dissidence.Formats.Natural;
-using UInt8 = System.Byte;
+using USize = System.UInt64;
 
 namespace Metatron.Dissidence {
     public static class Prelude {
@@ -19,31 +19,31 @@ namespace Metatron.Dissidence {
 
 #region Meta.Function
         // TODO: not sure if this works ._. am i really going to need generics this soon
-        [FunctionInfo(Module="Meta.Function", Name="Change Name", Description="Change name")]
+        [Info(Module="Meta.Function", Name="Change Name", Description="Change name")]
         [NaturalFormat("Change name of {1} to {2}")]
-        public static HasMetadata ChangeName(HasMetadata Object, String Name) {
+        public static HasMetadata ChangeName<T>(T Context, HasMetadata Object, String Name) {
             return Object with { Name = Name };
         }
 
-        [FunctionInfo(Module="Meta.Function", Name="Change Description", Description="Change description")]
+        [Info(Module="Meta.Function", Name="Change Description", Description="Change description")]
         [NaturalFormat("Change description of {1} to {2}")]
-        public static HasMetadata ChangeDescription(HasMetadata Object, String Description) {
+        public static HasMetadata ChangeDescription<T>(T Context, HasMetadata Object, String Description) {
             return Object with { Description = Description };
         }
 
-        [FunctionInfo(Module="Meta.Function", Name="Remove Input", Description="Remove input at specified position")]
+        [Info(Module="Meta.Function", Name="Remove Input", Description="Remove input at specified position")]
         [NaturalFormat("Remove argument at position {2} from {1}")]
-        public static Function RemoveArgument(Function Function, UInt8 Position) {
+        public static Function RemoveArgument<T>(T Context, Function Function, USize Position) {
             var arguments = Function.Arguments;
-            arguments.RemoveAt(Position);
+            arguments.RemoveAt((Int32) Position);
             return Function with { Arguments = arguments };
         }
 
-        [FunctionInfo(Module="Meta.Function", Name="Add Input", Description="Add input to specified position")]
+        [Info(Module="Meta.Function", Name="Add Input", Description="Add input to specified position")]
         [NaturalFormat("Insert argument into {1} at position {2}")]
-        public static Function AddArgument(Function Function, UInt8 Position, (String Name, Type Type) Argument) {
+        public static Function AddArgument<T>(T Context, Function Function, USize Position, (String Name, Type Type) Argument) {
             var arguments = Function.Arguments;
-            arguments.Insert(Position, Argument);
+            arguments.Insert((Int32) Position, Argument);
             return Function with { Arguments = arguments };
         }
 #endregion
@@ -51,24 +51,47 @@ namespace Metatron.Dissidence {
 #region Meta.AST
         // TODO: maybe make this an extension method
         // which would signify the Node.Node is pulled in from locals if possible
-        [FunctionInfo(Module="Meta.AST", Name="Replace Expression", Description="Replace selected expression with another expression")]
-        [NaturalFormat("Replace {2} with {3} in {1}")]
-        public static Node.Node ReplaceNode(Node.Node ast, Node.Node target, Node.Node replacement) {
-            while (target.Parent != null) {
-                replacement = target.Parent switch {
+        [Info(Module="Meta.AST", Name="Replace Expression", Description="Replace selected expression with another expression")]
+        [NaturalFormat("Replace {2} with {3}")]
+        public static Node.Node ReplaceNode<T>(T Context, Node.Node Target, Node.Node Replacement) {
+            while (Target.Parent != null) {
+                Replacement = Target.Parent switch {
                     // NOTE: literals, variables and holes don't contain node children.
-                    If node => replacement == node.Condition ? node with { Condition = replacement } : node with { Body = replacement },
-                    Call node => replacement == node.Function ? node with { Function = replacement } : node with { Arguments = node.Arguments.Select(item => item == target ? replacement : item).ToList() },
-                    While node => replacement == node.Condition ? node with { Condition = replacement } : node with { Body = replacement },
-                    Match node => replacement == node.Value ? node with { Value = replacement } : node with { Arms = node.Arms.Select(item => item == target ? replacement : item).ToList() },
-                    Mapping node => replacement == node.Value ? node with { Value = replacement } : node with { Body = replacement },
-                    Block node => node with { Statements = node.Statements.Select(item => item == target ? replacement : item).ToList() },
+                    // TODO: we shouldn't need this many runtime checks, do we???
+                    Call node => Target == node.Function ? node with { Function = Replacement } : node with { Arguments = node.Arguments.Select(item => item == Target ? Replacement : item).ToList() },
+                    While node => Target == node.Condition ?
+                        node with { Condition = Replacement } : Replacement is Block ? node with { Body = (Block) Replacement } :
+                        throw new ArgumentException($"While body must be Block, found {Replacement.GetType().Name}"),
+                    Match node => Target == node.Value ?
+                        node with { Value = Replacement } : Replacement is Mapping ? node with { Arms = node.Arms.Select(item => item == Target ? (Mapping) Replacement : item).ToList() } :
+                        throw new ArgumentException($"Match arm must be Mapping, found {Replacement.GetType().Name}"),
+                    Mapping node => Target == node.Value ? Replacement is Literal ?
+                        node with { Value = (Literal) Replacement } :
+                        throw new ArgumentException($"Mapping key must be Literal, found {Replacement.GetType().Name}")
+                    : Replacement is Block ?
+                        node with { Body = (Block) Replacement } :
+                        throw new ArgumentException($"Mapping value must be Block, found {Replacement.GetType().Name}"),
+                    Effect node => Target == node.Body ? Replacement is Block ?
+                        node with { Body = (Block) Replacement } :
+                        throw new ArgumentException($"Effect body must be Block, found {Replacement.GetType().Name}")
+                    : Replacement is Handler ? node with { Handlers = node.Handlers.Select(item => item == Target ? (Handler) Replacement : item).ToList() } :
+                        throw new ArgumentException($"Effect handler must be Handler, found {Replacement.GetType().Name}"),
+                    Handler node => Target == node.Type ? Replacement is Literal && ((Literal) Replacement).Value is Type ?
+                        node with { Type = (Literal) Replacement } :
+                        throw new ArgumentException($"Handler type mustbe Type, found {Replacement.GetType().Name}")
+                    : Target == node.Name ? Replacement is Literal && ((Literal) Replacement).Value is String ?
+                        node with { Name = (Literal) Replacement } :
+                        throw new ArgumentException($"Handler name must be String, found {Replacement.GetType().Name}")
+                    : Replacement is Block ?
+                        node with { Body = (Block) Replacement } :
+                        throw new ArgumentException($"Handler value must be Block, found {Replacement.GetType().Name}"),
+                    Block node => node with { Statements = node.Statements.Select(item => item == Target ? Replacement : item).ToList() },
                     // TODO: silently do nothing i guess...
                     _ => throw new ArgumentException("Unknown node type found when editing Node.Node"),
                 };
-                target = target.Parent;
+                Target = Target.Parent;
             }
-            return replacement;
+            return Replacement;
         }
 
         private static List<T> Removed<T>(this List<T> list, T item) {
@@ -81,33 +104,61 @@ namespace Metatron.Dissidence {
             return list;
         }
 
-        [FunctionInfo(Module="Meta.AST", Name="Remove Statement", Description="Remove selected statement")]
-        [NaturalFormat("Remove {2} from {1}")]
-        public static Node.Node RemoveStatement(Node.Node ast, Node.Node target) {
-            return target.Parent switch {
-                Match node => target == node.Value ? throw new ArgumentException("Not a statement; cannot remove statement") : ReplaceNode(ast, node, node with { Arms = node.Arms.Removed(target) }),
-                Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Removed(target) }),
+        [Info(Module="Meta.AST", Name="Remove Statement", Description="Remove selected statement")]
+        [NaturalFormat("Remove {2} from its parent")]
+        public static Node.Node RemoveStatement<T>(T Context, Node.Node Statement) {
+            return Statement.Parent switch {
+                Match node => Statement == node.Value ? throw new ArgumentException("Not a statement; cannot remove statement") :
+                    Statement is Mapping ? ReplaceNode(Context, node, node with { Arms = node.Arms.Removed((Mapping) Statement) }) :
+                    throw new ArgumentException($"Match statement must be Mapping, found {Statement.GetType().Name}"),
+                // TODO: assert 
+                Effect node => Statement == node.Body ? throw new ArgumentException("Not a statement; cannot remove statement") :
+                    Statement is Handler ? ReplaceNode(Context, node, node with { Handlers = node.Handlers.Removed((Handler) Statement) }) :
+                    throw new ArgumentException($"Effect statement must be Handler, found {Statement.GetType().Name}"),
+                Block node => ReplaceNode(Context, node, node with { Statements = node.Statements.Removed(Statement) }),
                 _ => throw new ArgumentException("Not a statement; cannot remove statement"),
             };
         }
 
-        [FunctionInfo(Module="Meta.AST", Name="Add Statement Before", Description="Add empty statement before selected statement")]
-        [NaturalFormat("Add empty statement before {2} in {1}")]
-        public static Node.Node AddStatementBefore(Node.Node ast, Node.Node target) {
-            return target.Parent switch {
-                Match node => target == node.Value ? throw new ArgumentException("Cannot add statement here") : ReplaceNode(ast, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf(target), new Mapping { Value = new Hole {}, Body = new Hole {} }) }),
-                Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(target), new Hole {}) }),
+        [Info(Module="Meta.AST", Name="Add Statement Before", Description="Add empty statement before selected statement")]
+        [NaturalFormat("Add empty statement before {2} in its parent")]
+        public static Node.Node AddStatementBefore<T>(T Context, Node.Node Statement) {
+            return Statement.Parent switch {
+                Match node => Statement == node.Value ? throw new ArgumentException("Cannot add statement here") :
+                    // TODO: figure out how to represent _.
+                    // TODO: the Mapping and Handler reprs are a stopgap measure. normally they should be Hole but obviously that can't be used in all places
+                    ReplaceNode(Context, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf((Mapping) Statement), new Mapping {
+                        Value = new Literal { Value = (Object) null },
+                        Body = new Block { Statements = new List<Node.Node>() }
+                    }) }),
+                Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
+                    ReplaceNode(Context, node, node with { Handlers = node.Handlers.Inserted(node.Handlers.IndexOf((Handler) Statement), new Handler {
+                        Type = new Literal { Value = typeof(Object) },
+                        Name = new Literal { Value = "_" },
+                        Body = new Block { Statements = new List<Node.Node>() }
+                    }) }),
+                Block node => ReplaceNode(Context, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(Statement), new Hole {}) }),
                 _ => throw new ArgumentException("Cannot add statement here"),
             };
         }
 
         // TODO: DRY
-        [FunctionInfo(Module="Meta.AST", Name="Add Statement After", Description="Add empty statement after selected statement")]
-        [NaturalFormat("Add empty statement after {2} in {1}")]
-        public static Node.Node AddStatementAfter(Node.Node ast, Node.Node target) {
-            return target.Parent switch {
-                Match node => target == node.Value ? throw new ArgumentException("Cannot add statement here") : ReplaceNode(ast, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf(target), new Mapping { Value = new Hole {}, Body = new Hole {} }) }),
-                Block node => ReplaceNode(ast, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(target) + 1, new Hole {}) }),
+        [Info(Module="Meta.AST", Name="Add Statement After", Description="Add empty statement after selected statement")]
+        [NaturalFormat("Add empty statement after {2} in its parent")]
+        public static Node.Node AddStatementAfter<T>(T Context, Node.Node Statement) {
+            return Statement.Parent switch {
+                Match node => Statement == node.Value ? throw new ArgumentException("Cannot add statement here") :
+                    ReplaceNode(Context, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf((Mapping) Statement), new Mapping {
+                        Value = new Literal { Value = (Object) null },
+                        Body = new Block { Statements = new List<Node.Node>() }
+                    }) }),
+                Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
+                    ReplaceNode(Context, node, node with { Handlers = node.Handlers.Inserted(node.Handlers.IndexOf((Handler) Statement), new Handler {
+                        Type = new Literal { Value = typeof(Object) },
+                        Name = new Literal { Value = "_" },
+                        Body = new Block { Statements = new List<Node.Node>() }
+                    }) }),
+                Block node => ReplaceNode(Context, node, node with { Statements = node.Statements.Inserted(node.Statements.IndexOf(Statement) + 1, new Hole {}) }),
                 _ => throw new ArgumentException("Cannot add statement here"),
             };
         }
@@ -115,48 +166,51 @@ namespace Metatron.Dissidence {
 
 #region Core.Session
         // TODO
+        [Info(Module="Core.Session", Name="Session Data", Description="Data associated with a session")]
         public record SessionData {}
+        [Info(Module="Core.Session", Name="Session", Description="Session that includes certain users and roles in a guild")]
         public record Session {
-            [MemberInfo(Name="guild ID", Description="ID of the guild this session is active in")]
-            public UInt64 GuildId;
-            [MemberInfo(Description="ID of the module this session is associated with")]
-            public UInt64 Module;
-            [MemberInfo(Description="Data of the session that is persisted across function invocations")]
+            [Info(Module="Core.Session", Name="Guild ID", Description="ID of the guild this session is active in")]
+            public USize GuildID;
+            [Info(Module="Core.Session", Name="Module ID", Description="ID of the module this session is associated with")]
+            public USize ModuleID;
+            [Info(Module="Core.Session", Name="Session Data", Description="Data of the session that is persisted across function invocations")]
             public SessionData Data;
         }
-        [RecordInfo(Description="Session that includes certain users and roles in a guild")]
+        [Info(Module="Core.Session", Name="User Session", Description="Session that includes certain users and roles in a guild")]
         public record UserSession : Session {
-            [MemberInfo(Description="List of users included in this session")]
-            public UInt64[] UserIds;
-            [MemberInfo(Description="List of roles included in this session")]
-            public UInt64[] RoleIds;
+            [Info(Module="Core.Session", Name="User IDs", Description="IDs of users included in this session")]
+            public USize[] UserIDs;
+            [Info(Module="Core.Session", Name="Role IDs", Description="IDs of roles included in this session")]
+            public USize[] RoleIDs;
         }
-        [RecordInfo(Description="Session that includes certain channels and categories in a guild")]
+        [Info(Module="Core.Session", Name="Channel Session", Description="Session that includes certain channels and categories in a guild")]
         public record ChannelSession : Session {
-            [MemberInfo(Description="List of channels included in this session")]
-            public UInt64[] ChannelIds;
-            [MemberInfo(Description="List of categories included in this session")]
-            public UInt64[] CategoryIds;
+            [Info(Module="Core.Session", Name="Channel IDs", Description="IDs of channels included in this session")]
+            public USize[] ChannelIDs;
+            [Info(Module="Core.Session", Name="Category IDs", Description="IDs of categories included in this session")]
+            public USize[] CategoryIDs;
         }
-        [RecordInfo(Description="Session that includes an entire guild")]
+        [Info(Description="Session that includes an entire guild")]
         public record GuildSession : Session {}
 
-        [FunctionInfo(Module="Core.Session", Name="Create User Session", Description="Create session that includes certain users and roles in a guild")]
+        // TODO: decide whether to extract IDs from passed object or to pass IDs directly.
+        [Info(Module="Core.Session", Name="Create User Session", Description="Create session that includes certain users and roles in a guild")]
         [NaturalFormat("Create session associated with {0} which includes {1} and {2}")]
-        public static UserSession CreateUserSession(UInt64 guild, List<UInt64> users, List<UInt64> roles) {
-            return new UserSession { GuildId = guild, UserIds = users.ToArray(), RoleIds = roles.ToArray(), Data = new SessionData {} };
+        public static UserSession CreateUserSession<T>(T Context, USize GuildID, List<USize> UserIDs, List<USize> RoleIDs) {
+            return new UserSession { GuildID = GuildID, UserIDs = UserIDs.ToArray(), RoleIDs = RoleIDs.ToArray(), Data = new SessionData {} };
         }
 
-        [FunctionInfo(Module="Core.Session", Name="Create Channel Session", Description="Create session that includes certain channels and categories in a guild")]
+        [Info(Module="Core.Session", Name="Create Channel Session", Description="Create session that includes certain channels and categories in a guild")]
         [NaturalFormat("Create session associated with {0} which includes {1} and {2}")]
-        public static ChannelSession CreateChannelSession(UInt64 guild, List<UInt64> channels, List<UInt64> categories) {
-            return new ChannelSession { GuildId = guild, ChannelIds = channels.ToArray(), CategoryIds = categories.ToArray(), Data = new SessionData {} };
+        public static ChannelSession CreateChannelSession<T>(T Context, USize GuildID, List<USize> ChannelIDs, List<USize> CategoryIDs) {
+            return new ChannelSession { GuildID = GuildID, ChannelIDs = ChannelIDs.ToArray(), CategoryIDs = CategoryIDs.ToArray(), Data = new SessionData {} };
         }
 
-        [FunctionInfo(Module="Core.Session", Name="Create Guild Session", Description="Create session that includes entire guild")]
+        [Info(Module="Core.Session", Name="Create Guild Session", Description="Create session that includes entire guild")]
         [NaturalFormat("Create session associated with {0}")]
-        public static GuildSession CreateGuildSession(UInt64 guild) {
-            return new GuildSession { GuildId = guild, Data = new SessionData {} };
+        public static GuildSession CreateGuildSession<T>(T Context, USize GuildID) {
+            return new GuildSession { GuildID = GuildID, Data = new SessionData {} };
         }
 #endregion
     }
