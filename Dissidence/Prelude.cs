@@ -55,40 +55,87 @@ namespace Metatron.Dissidence {
         [NaturalFormat("Replace {2} with {3}")]
         public static Node.Node ReplaceNode<T>(T Context, Node.Node Target, Node.Node Replacement) {
             while (Target.Parent != null) {
-                Replacement = Target.Parent switch {
+                switch (Target.Parent) {
                     // NOTE: literals, variables and holes don't contain node children.
                     // TODO: we shouldn't need this many runtime checks, do we???
-                    Call node => Target == node.Function ? node with { Function = Replacement } : node with { Arguments = node.Arguments.Select(item => item == Target ? Replacement : item).ToList() },
-                    While node => Target == node.Condition ?
-                        node with { Condition = Replacement } : Replacement is Block ? node with { Body = (Block) Replacement } :
-                        throw new ArgumentException($"While body must be Block, found {Replacement.GetType().Name}"),
-                    Match node => Target == node.Value ?
-                        node with { Value = Replacement } : Replacement is Mapping ? node with { Arms = node.Arms.Select(item => item == Target ? (Mapping) Replacement : item).ToList() } :
-                        throw new ArgumentException($"Match arm must be Mapping, found {Replacement.GetType().Name}"),
-                    Mapping node => Target == node.Value ? Replacement is Literal ?
-                        node with { Value = (Literal) Replacement } :
-                        throw new ArgumentException($"Mapping key must be Literal, found {Replacement.GetType().Name}")
-                    : Replacement is Block ?
-                        node with { Body = (Block) Replacement } :
-                        throw new ArgumentException($"Mapping value must be Block, found {Replacement.GetType().Name}"),
-                    Effect node => Target == node.Body ? Replacement is Block ?
-                        node with { Body = (Block) Replacement } :
-                        throw new ArgumentException($"Effect body must be Block, found {Replacement.GetType().Name}")
-                    : Replacement is Handler ? node with { Handlers = node.Handlers.Select(item => item == Target ? (Handler) Replacement : item).ToList() } :
-                        throw new ArgumentException($"Effect handler must be Handler, found {Replacement.GetType().Name}"),
-                    Handler node => Target == node.Type ? Replacement is Literal && ((Literal) Replacement).Value is Type ?
-                        node with { Type = (Literal) Replacement } :
-                        throw new ArgumentException($"Handler type mustbe Type, found {Replacement.GetType().Name}")
-                    : Target == node.Name ? Replacement is Literal && ((Literal) Replacement).Value is String ?
-                        node with { Name = (Literal) Replacement } :
-                        throw new ArgumentException($"Handler name must be String, found {Replacement.GetType().Name}")
-                    : Replacement is Block ?
-                        node with { Body = (Block) Replacement } :
-                        throw new ArgumentException($"Handler value must be Block, found {Replacement.GetType().Name}"),
-                    Block node => node with { Statements = node.Statements.Select(item => item == Target ? Replacement : item).ToList() },
+                    case Call node:
+                        if (Target == node.Function) {
+                            Replacement = node with { Function = Replacement };
+                        } else {
+                            Replacement = node with { Arguments = node.Arguments.Select(item => item == Target ? Replacement : item).ToList() };
+                        }
+                        break;
+                    case While node:
+                        if (Target == node.Condition) {
+                            Replacement = node with { Condition = Replacement };
+                        } else {
+                            Replacement = Replacement switch {
+                                Block node2 => node with { Body = node2 },
+                                _ => throw new ArgumentException($"While body must be Block, found {Replacement.GetType().Name}"),
+                            };
+                        }
+                        break;
+                    case Match node:
+                        if (Target == node.Value) {
+                            Replacement = node with { Value = Replacement };
+                        } else {
+                            Replacement = Replacement switch {
+                                Mapping node2 => node with { Arms = node.Arms.Select(item => item == Target ? node2 : item).ToList() },
+                                _ => throw new ArgumentException($"Match arm must be Mapping, found {Replacement.GetType().Name}"),
+                            };
+                        }
+                        break;
+                    case Mapping node:
+                        if (Target == node.Value) {
+                            Replacement = Replacement switch {
+                                Literal node2 => node with { Value = node2 },
+                                _ => throw new ArgumentException($"Mapping value must be Literal, found {Replacement.GetType().Name}"),
+                            };
+                        } else {
+                            Replacement = Replacement switch {
+                                Block node2 => node with { Body = node2 },
+                                _ => throw new ArgumentException($"Mapping body must be Block, found {Replacement.GetType().Name}"),
+                            };
+                        }
+                        break;
+                    case Effect node:
+                        if (Target == node.Body) {
+                            Replacement = Replacement switch {
+                                Block node2 => node with { Body = node2 },
+                                _ => throw new ArgumentException($"Effect body must be Block, found {Replacement.GetType().Name}"),
+                            };
+                        } else {
+                            Replacement = Replacement switch {
+                                Handler node2 => node with { Handlers = node.Handlers.Select(item => item == Target ? node2 : item).ToList() },
+                                _ => throw new ArgumentException($"Effect handler must be Handler, found {Replacement.GetType().Name}"),
+                            };
+                        }
+                        break;
+                    case Handler node:
+                        if (Target == node.Type) {
+                            Replacement = Replacement switch {
+                                Literal node2 when node2.Value is Type => node with { Type = (Literal) Replacement },
+                                _ => throw new ArgumentException($"Handler type must be Type Literal, found {Replacement.GetType().Name}"),
+                            };
+                        } else if (Target == node.Name) {
+                            Replacement = Replacement switch {
+                                Literal node2 when node2.Value is String => node with { Name = (Literal) Replacement },
+                                _ => throw new ArgumentException($"Handler name must be String Literal, found {Replacement.GetType().Name}"),
+                            };
+                        } else {
+                            Replacement = Replacement switch {
+                                Block node2 => node with { Body = node2 },
+                                _ => throw new ArgumentException($"Handler body must be Block, found {Replacement.GetType().Name}"),
+                            };
+                        }
+                        break;
+                    case Block node:
+                        Replacement = node with { Statements = node.Statements.Select(item => item == Target ? Replacement : item).ToList() };
+                        break;
                     // TODO: silently do nothing i guess...
-                    _ => throw new ArgumentException("Unknown node type found when editing Node.Node"),
-                };
+                    default:
+                        throw new ArgumentException("Unknown node type found when editing Node.Node");
+                }
                 Target = Target.Parent;
             }
             return Replacement;
@@ -108,6 +155,7 @@ namespace Metatron.Dissidence {
         [NaturalFormat("Remove {2} from its parent")]
         public static Node.Node RemoveStatement<T>(T Context, Node.Node Statement) {
             return Statement.Parent switch {
+                // TODO: change to if-else?
                 Match node => Statement == node.Value ? throw new ArgumentException("Not a statement; cannot remove statement") :
                     Statement is Mapping ? ReplaceNode(Context, node, node with { Arms = node.Arms.Removed((Mapping) Statement) }) :
                     throw new ArgumentException($"Match statement must be Mapping, found {Statement.GetType().Name}"),
@@ -125,7 +173,7 @@ namespace Metatron.Dissidence {
         public static Node.Node AddStatementBefore<T>(T Context, Node.Node Statement) {
             return Statement.Parent switch {
                 Match node => Statement == node.Value ? throw new ArgumentException("Cannot add statement here") :
-                    // TODO: figure out how to represent _.
+                    // TODO: figure out how to represent _
                     // TODO: the Mapping and Handler reprs are a stopgap measure. normally they should be Hole but obviously that can't be used in all places
                     ReplaceNode(Context, node, node with { Arms = node.Arms.Inserted(node.Arms.IndexOf((Mapping) Statement), new Mapping {
                         Value = new Literal { Value = (Object) new Prelude.Unit() },

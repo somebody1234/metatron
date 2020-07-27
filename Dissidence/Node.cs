@@ -13,7 +13,7 @@ namespace Metatron.Dissidence {
         // NOTE: if-else is match on bools. not sure if there is a need to subclass MatchNode for that alone
         [Serializable] public record Match : Node { public Node Value; public List<Mapping> Arms; }
         [Serializable] public record Mapping : Node { public Literal Value; public Block Body; }
-        [Serializable] public record Effect : Node { public Node Body; public List<Handler> Handlers; }
+        [Serializable] public record Effect : Node { public Block Body; public List<Handler> Handlers; }
         [Serializable] public record Handler : Node { public Literal Type; public Literal Name; public Block Body; }
         [Serializable] public record Block : Node { public List<Node> Statements; }
         // NOTE: mapping where the value is a type (of handler)
