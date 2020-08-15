@@ -6,6 +6,7 @@ using Discord.WebSocket;
 namespace Metatron {
     internal static class Discord {
         internal static DiscordSocketClient Client;
+        internal static String OAuth2Token;
     
         internal async static Task Initialize() {
             Client = new DiscordSocketClient();

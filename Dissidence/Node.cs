@@ -14,7 +14,7 @@ namespace Metatron.Dissidence {
         [Serializable] public record Match : Node { public Node Value; public List<Mapping> Arms; }
         [Serializable] public record Mapping : Node { public Literal Value; public Block Body; }
         [Serializable] public record Effect : Node { public Block Body; public List<Handler> Handlers; }
-        [Serializable] public record Handler : Node { public Literal Type; public Literal Name; public Block Body; }
+        [Serializable] public record Handler : Node { public Literal Value; public Literal Name; public Block Body; }
         [Serializable] public record Block : Node { public List<Node> Statements; }
         // NOTE: mapping where the value is a type (of handler)
         // therefore if a type is not in any handler it should not typecheck

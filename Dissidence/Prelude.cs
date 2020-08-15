@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Reflection;
 using Metatron.Dissidence.Node;
 using Metatron.Dissidence.Attributes;
 using static Metatron.Dissidence.Formats.Natural;
@@ -8,6 +9,16 @@ using USize = System.UInt64;
 
 namespace Metatron.Dissidence {
     public static class Prelude {
+        public static Dictionary<TypeInfo, InfoAttribute> NativeInfos { get; private set; }
+
+        static Prelude() {
+            NativeInfos = new Dictionary<TypeInfo, InfoAttribute>();
+            NativeInfos[typeof(Boolean).GetTypeInfo()] = new InfoAttribute(Module: "Core.Core", Name: "Truth", Description: "Either true or false");
+            // TODO: 
+            NativeInfos[typeof(Int64).GetTypeInfo()] = new InfoAttribute(Module: "Core.Core", Name: "64-bit Integer", Description: "64-bit integer");
+            NativeInfos[typeof(String).GetTypeInfo()] = new InfoAttribute(Module: "Core.Core", Name: "Text", Description: "A list of characters");
+            // TODO: true and false
+        }
         // TODO: builtin methods (like string shit)
 
 #region Miscellaneous
@@ -16,6 +27,12 @@ namespace Metatron.Dissidence {
         // TODO: idk what im doing. this is for function and module i guess
         public record HasMetadata { public String Name; public String Description; }
 #endregion
+
+#region Core.Core
+        [Info(Module="Core.Core", Name="Character", Description="Text character")]
+        public record Character { public UInt32 Value; }
+        // NOTE: use ufcs. extension methods for things
+#endregion Core.Core
 
 #region Meta.Function
         // TODO: not sure if this works ._. am i really going to need generics this soon
@@ -112,10 +129,10 @@ namespace Metatron.Dissidence {
                         }
                         break;
                     case Handler node:
-                        if (Target == node.Type) {
+                        if (Target == node.Value) {
                             Replacement = Replacement switch {
-                                Literal node2 when node2.Value is Type => node with { Type = (Literal) Replacement },
-                                _ => throw new ArgumentException($"Handler type must be Type Literal, found {Replacement.GetType().Name}"),
+                                Literal node2 when node2.Value is Type => node with { Value = (Literal) Replacement },
+                                _ => throw new ArgumentException($"Handler value must be Type Literal, found {Replacement.GetType().Name}"),
                             };
                         } else if (Target == node.Name) {
                             Replacement = Replacement switch {
@@ -181,7 +198,7 @@ namespace Metatron.Dissidence {
                     }) }),
                 Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
                     ReplaceNode(Context, node, node with { Handlers = node.Handlers.Inserted(node.Handlers.IndexOf((Handler) Statement), new Handler {
-                        Type = new Literal { Value = typeof(Object) },
+                        Value = new Literal { Value = typeof(Object) },
                         Name = new Literal { Value = "_" },
                         Body = new Block { Statements = new List<Node.Node>() }
                     }) }),
@@ -202,7 +219,7 @@ namespace Metatron.Dissidence {
                     }) }),
                 Effect node => Statement == node.Body ? throw new ArgumentException("Cannot add statement here") :
                     ReplaceNode(Context, node, node with { Handlers = node.Handlers.Inserted(node.Handlers.IndexOf((Handler) Statement), new Handler {
-                        Type = new Literal { Value = typeof(Object) },
+                        Value = new Literal { Value = typeof(Object) },
                         Name = new Literal { Value = "_" },
                         Body = new Block { Statements = new List<Node.Node>() }
                     }) }),
