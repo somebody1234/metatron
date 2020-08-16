@@ -266,7 +266,7 @@ namespace Metatron.DissidenceDiscord {
             [Info(Name="name", Description="Name")]
             public Optional<String> Name;
             [Info(Name="role IDs", Description="IDs of the roles that can use this emote")]
-            public Optional<IEnumerable<IRole>> RoleIDs;
+            public Optional<IEnumerable<USize>> RoleIDs;
         }
 
         [Info(Module="Discord.Guild", Name="Modify Emote", Description="Modify emote in guild")]
@@ -503,7 +503,7 @@ namespace Metatron.DissidenceDiscord {
         // TODO: this has no counterpart create since invites are specific to channels
         [Info(Module="Discord.Guild", Name="Get Invites", Description="Get invites")]
         [NaturalFormat("Get invites in {0}")]
-        public static async Task<IInviteMetadata> GetInvites<T>(T Context, IGuild Guild)
+        public static async Task<IReadOnlyCollection<IInviteMetadata>> GetInvites<T>(T Context, IGuild Guild)
             where T: PViewInvites
         {
             return await Guild.GetInvitesAsync();
@@ -604,7 +604,7 @@ namespace Metatron.DissidenceDiscord {
 #region Reactions
         [Info(Module="Discord.UserMessage", Name="Get Reaction", Description="Get users who reacted with a specific emoji")]
         [NaturalFormat("Add {1} to {0}")]
-        public static IAsyncEnumerable<IReadOnlyCollection<IUser>> GetReaction<T>(T Context, IUserMessage Message)
+        public static IReadOnlyDictionary<IEmote, ReactionMetadata> GetReaction<T>(T Context, IUserMessage Message)
             where T : PViewReactions
         {
             return Message.Reactions;
